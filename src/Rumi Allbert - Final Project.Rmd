@@ -1,0 +1,119 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r, echo=FALSE, results=FALSE, include=FALSE}
+knitr::opts_chunk$set(fig.width=4.5, fig.height=4)
+library(ggplot2)
+library(tidyverse)
+library(olsrr)
+```
+
+
+```{r, echo=FALSE, results=FALSE}
+df=read.csv("/Users/rumiallbert/Library/CloudStorage/GoogleDrive-rumiallbert@gmail.com/My Drive/Fei Tian Middletown /Fall 2022/Applied Regression Analysis/Final Project/data/model_df.csv")
+#df$wage = df$wage*52
+head(df)
+```
+
+
+```{r}
+model = lm(value~., data=df)
+summary(model)
+```
+
+```{r}
+stepwise = ols_step_both_p(model)
+```
+
+
+```{r}
+df_clean = df
+for (x in 1:10) {
+  print(nrow(df_clean))
+  model = lm(value~.,data=df_clean)
+
+  #model_weighted = lm(wage~.,data=df_clean, weights= 1/value)
+  stud = ols_plot_resid_stud(model, print_plot=F)
+  df_clean = df_clean[-c(stud$outliers$observation), ]
+}
+
+summary(model)
+plot(model)
+ols_plot_resid_stud(model)
+```
+```{r}
+plot(model_weighted)
+ols_plot_resid_stud(model_weighted)
+```
+
+
+```{r}
+df_clean = df_clean[-c(stud2$leverage$observation), ]
+model2 = lm(sqrt(wage)~., data=df_clean)
+summary(model2)
+
+plot(model2)
+stud3 = ols_plot_resid_stud(model2, print_plot=F)
+
+ols_plot_resid_stud(model2, print_plot=F)
+```
+
+```{r}
+library(tidyverse)
+library(caret)
+library(leaps)
+models <- regsubsets(value~., data = df, nbest=1, nvmax = NULL, really.big = T, method='seqrep')
+summary_best_subset <- summary(models)
+as.data.frame(summary_best_subset$outmat)
+```
+
+```{r}
+which.max(summary_best_subset$adjr2)
+```
+
+```{r}
+best_feats = summary_best_subset$which[13,]
+best_feats
+```
+
+```{r}
+BCM <- BoxCoxTrans(df$value)
+
+model_df = df
+# model_df = as.data.frame(scale(model_df))
+
+#model_df$value = scale(df$value)
+model_df$value <- predict(BCM, df$value)
+head(model_df)
+```
+```{r}
+hist(model_df$value, breaks=100)
+```
+
+
+```{r}
+#df_clean = df[sample(nrow(df), 5000), ]
+df_clean = df
+for (x in 0:4) {
+  print(nrow(df_clean))
+  model = lm(log(value)~ release_clause + age + physic + league_level + attacking_crossing + wage + potential + nation_jersey_number + power_jumping + power_stamina + international_reputation + club_team_id + movement_balance + attacking_volleys + skill_long_passing + overall + pace + mentality_aggression + mentality_penalties + player_positions_FWD, data=df_clean)
+
+  #model_weighted = lm(wage~.,data=df_clean, weights= 1/value)
+  stud = ols_plot_dffits(model, print_plot=F)
+  df_clean = df_clean[-c(stud$outliers$observation), ]
+  
+    model = lm(log(value)~ release_clause + age + physic + league_level + attacking_crossing + wage + potential + nation_jersey_number + power_jumping + power_stamina + international_reputation + club_team_id + movement_balance + attacking_volleys + skill_long_passing + overall + pace + mentality_aggression + mentality_penalties + player_positions_FWD, data=df_clean)
+  
+  out = ols_plot_cooksd_bar(model, print_plot=F)
+  df_clean = df_clean[-c(out$outliers$observation), ]
+}
+summary(model)
+plot(model, 1)
+plot(model, 2)
+ols_plot_dffits(model)
+ols_plot_cooksd_bar(model)
+```
+
+
