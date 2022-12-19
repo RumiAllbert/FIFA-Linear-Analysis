@@ -20,58 +20,18 @@ df=read.csv("/Users/rumiallbert/Library/CloudStorage/GoogleDrive-rumiallbert@gma
 head(df)
 ```
 
+# Full Model
 
 ```{r}
-model = lm(value~., data=df)
-summary(model)
-plot(model)
+fm_model = lm(value~., data=df)
+summary(fm_model)
+plot(fm_model)
 ```
+# Reduced Model
 
+##Transform Label
 
-```{r}
-step = ols_step_both_aic(model)
-```
-```{r}
-step$model
-```
-
-
-
-```{r}
-df_clean = df
-for (x in 0:1) {
-  print(nrow(df_clean))
-  model = lm(log(value)~ release_clause + wage+ potential + real_face + movement_balance + mentality_penalties + club_team_id + mentality_aggression+ attacking_crossing  + international_reputation + pace + league_level + power_stamina + overall + physic + power_jumping + skill_long_passing + age + nation_jersey_number + attacking_volleys + player_positions_FWD ,data=df_clean)
-
-  #model_weighted = lm(wage~.,data=df_clean, weights= 1/value)
-  stud = ols_plot_resid_stud(model, print_plot=F)
-  df_clean = df_clean[-c(stud$outliers$observation), ]
-}
-
-summary(model)
-plot(model)
-# ols_plot_resid_stud(model)
-```
-
-
-
-```{r}
-models <- regsubsets(value~., data = df, nbest=1, nvmax = NULL, really.big = T, method='seqrep')
-summary_best_subset <- summary(models)
-as.data.frame(summary_best_subset$outmat)
-```
-
-```{r}
-which.max(summary_best_subset$adjr2)
-```
-
-```{r}
-best_feats = summary_best_subset$which[13,]
-best_feats
-```
-
-
-## Using BoxCox
+Transform the label using Box Cox
 
 ```{r}
 model_df = df
@@ -82,18 +42,43 @@ model_df$value <- predict(BCM, df$value)
 head(model_df)
 ```
 ```{r}
-hist(df$value, breaks=100)
+hist(df$value, breaks=100, main='Histogram of Value label', xlab='Value')
 ```
 
 
 ```{r}
-hist(model_df$value, breaks=100)
+hist(model_df$value, breaks=100, main='Histogram of Value label', xlab='Value')
 ```
 
+## Stepwise Regression
+
+Using stepwise regression, let's get the best reduced model given the AIC as the standard of measure.
+
 ```{r}
-df_clean = model_df[sample(nrow(model_df), 1000), ]
-# df_clean = model_df
-for (x in 0:5) {
+row.number <- sample(1:nrow(model_df), 0.8*nrow(model_df))
+df_clean = model_df[row.number,]
+test = model_df[-row.number,]
+
+model = lm(value ~ . , data=df_clean)
+```
+
+
+```{r}
+step = ols_step_both_aic(model)
+```
+```{r}
+step$model
+```
+
+## Fit the reduced model and eliminate outliers that are three standard deviations away
+
+
+```{r}
+# df_clean = model_df[sample(nrow(model_df), 1000), ]
+row.number <- sample(1:nrow(model_df), 0.8*nrow(model_df))
+df_clean = model_df[row.number,]
+test = model_df[-row.number,]
+for (x in 0:4) {
   print(nrow(df_clean))
 
   # model = lm(log(value) ~  wage+ potential + real_face + movement_balance + mentality_penalties + club_team_id + mentality_aggression+ attacking_crossing  + international_reputation + pace + league_level + power_stamina + overall + physic + power_jumping + skill_long_passing + age + nation_jersey_number + attacking_volleys + player_positions_FWD, data=df_clean)
@@ -111,13 +96,18 @@ plot(model, 2)
 ols_plot_cooksd_bar(model)
 ols_plot_resid_stud(model)
 ```
+## Testing on New Data
+
 
 ```{r}
-ano = anova(model)
-library(htmlTable)
-htmlTable(ano)
-```
+pred1 <- predict(model, newdata=test)
 
+rmse <- sqrt(sum((exp(pred1) - test$value)^2)/length(test$value))
+c(RMSE = rmse, R2=summary(model)$r.squared)
+
+par(mfrow=c(1,1))
+plot(test$value, exp(pred1))
+```
 
 $\widehat{value}^{-.1}=350.8-0.06652age-0.001394physic+0.000003400wage+0.0251potential+1.536overall+0.2505reputation$
 
@@ -128,18 +118,5 @@ check = model_df[myvars]
 check = check[sample(nrow(check), 5000), ]
 chart.Correlation(check, histogram=TRUE, pch=25)
 
-```
-
-```{r}
-model = lm(value~., data=df)
-summary(model)
-```
-
-```{r}
-k = ols_step_backward_p(model, p_val=.05)
-```
-
-```{r}
-k
 ```
 
